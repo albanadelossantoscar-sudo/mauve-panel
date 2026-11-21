@@ -18,7 +18,9 @@ async function token(shop, id, secret) {
   if (!r.ok) {
     let detalle = '';
     try { const t = (await r.text()).replace(/\s+/g, ' '); const m = t.match(/<title>([^<]*)/); const p = t.match(/Oauth error[^<]*/); detalle = (p ? p[0] : (m ? m[1] : t)).slice(0, 300); } catch (e) { /* sin detalle */ }
-    throw new Error(`Shopify no entregó el token (${pasos.join(' -> ')}): ${detalle}. Revisá SHOPIFY_SHOP, SHOPIFY_CLIENT_ID y SHOPIFY_CLIENT_SECRET, y que la app esté instalada en la tienda.`);
+    const sid = String(id).trim(), ssec = String(secret).trim();
+    const forma = `ID de ${sid.length} caracteres; secreto de ${ssec.length} caracteres, ${/^shpss_/.test(ssec) ? 'empieza con shpss_' : 'NO empieza con shpss_'}${ssec === sid ? ', IGUAL al ID' : ''}`;
+    throw new Error(`Shopify no entregó el token (${pasos.join(' -> ')}): ${detalle} [${forma}]. Revisá SHOPIFY_SHOP, SHOPIFY_CLIENT_ID y SHOPIFY_CLIENT_SECRET, y que la app esté instalada en la tienda.`);
   }
   const j = await r.json();
   if (!j.access_token) throw new Error('Shopify respondió sin access_token.');
