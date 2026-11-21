@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="es-UY">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mauve — Panel público</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script>{{D3_JS}}</script>
+<style>
+  :root { color-scheme: dark; --deep: #06110d; --green: #2f9a70; --leaf: #3fa37c; --mint: #173a2d; --peach: #ef8a5f; --peach-soft: #3a231a;
+    --bg: #0a1411; --panel: #121e19; --line: #22332c; --fg: #e6efea; --muted: #8fa298; --bad: #f2785f; --ok: #5fd19b; --field: #0d1814; --track: #1a2b24;
+    --serif: 'Instrument Serif', Georgia, serif; --sans: 'Inter', system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .mv { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; }
+  .rail { position: sticky; top: 16px; align-self: start; background: var(--deep); border: 1px solid var(--line); border-radius: 32px; padding: 14px 0; display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 460px; }
+  .logo { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; margin-bottom: 10px; background: rgba(63,163,124,.3); color: #fff; font-family: var(--serif); font-size: 22px; }
+  .nav { width: 42px; height: 42px; border-radius: 14px; border: 0; background: transparent; color: rgba(255,255,255,.62); display: grid; place-items: center; cursor: pointer; position: relative; }
+  .nav:hover, .nav.on { background: rgba(255,255,255,.12); color: #fff; }
+  .nav.on::before { content: ""; position: absolute; left: -11px; width: 4px; height: 20px; border-radius: 4px; background: var(--leaf); }
+  .nav svg { width: 20px; height: 20px; }
+  .tip { position: absolute; left: 52px; background: var(--deep); color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 8px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 5; }
+  .nav:hover .tip { opacity: 1; }
+  main { display: grid; gap: 16px; min-width: 0; }
+  .row { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+  .row.wide { grid-template-columns: minmax(0, 1.7fr) minmax(min(100%, 280px), 1fr); }
+  .row.half { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 20px; min-width: 0; scroll-margin-top: 16px; }
+  .card h2 { font-size: 16px; font-weight: 600; margin: 0 0 2px; }
+  .note { color: var(--muted); font-size: 12px; margin: 0 0 14px; }
+  .hero { background: radial-gradient(120% 140% at 85% 10%, #23704f 0%, #0c241b 62%); color: #fff; border: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: end; }
+  .hero h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(30px, 4vw, 44px); margin: 0; line-height: 1.05; }
+  .hero h1 i { color: #9fe0bf; }
+  .hero p { margin: 8px 0 0; color: rgba(255,255,255,.8); max-width: 46rem; line-height: 1.5; }
+  .hero p b { color: #fff; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+  .chip { background: rgba(255,255,255,.12); border-radius: 999px; padding: 6px 12px; font-size: 12px; white-space: nowrap; }
+  .chip.hot { background: var(--peach); color: #2b1208; }
+  .warnbar { background: var(--peach-soft); border: 1px solid #6b3a26; color: #ffc9b0; border-radius: 16px; padding: 12px 16px; font-size: 13px; }
+  .warnbar[hidden] { display: none; }
+  .kpi .lab { font-size: 12px; color: var(--muted); }
+  .kpi .big { font-family: var(--serif); font-size: clamp(28px, 3vw, 36px); margin: 6px 0 4px; line-height: 1.1; }
+  .kpi .sub { font-size: 12px; color: var(--muted); }
+  .kpi.accent { background: var(--mint); }
+  .neg { color: var(--bad) !important; }
+  .pos { color: var(--ok); }
+  .chart { position: relative; min-height: 220px; }
+  .mini { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .mini .m { background: var(--field); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px 8px; position: relative; }
+  .mini .m.dos { grid-column: span 2; }
+  @media (max-width: 1000px) { .mini { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .mini { grid-template-columns: minmax(0, 1fr); } }
+  .mini .eh { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .mini .et { font-size: 13px; color: var(--muted); }
+  .mini .ev { font-size: 18px; font-weight: 600; }
+  .mini .lg { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+  .mini .lg i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+  @media (max-width: 560px) { .mini .m.dos { grid-column: auto; } }
+  .mfil { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; margin: 0 0 14px; }
+  .mfil label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+  .mfil input, .mfil select { background: var(--field); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 13px; }
+  .seg { display: inline-flex; background: var(--field); border: 1px solid var(--line); border-radius: 12px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+  .seg button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 9px; cursor: pointer; }
+  .seg button.on { background: var(--mint); color: #bfeede; }
+  .mkp { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .mkp .tile { background: var(--field); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+  .mkp .tile .k { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .mkp .tile .v { font-size: 20px; font-weight: 600; }
+  .mkp .tile .d { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+  .mc { background: var(--field); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px 8px; margin-bottom: 14px; position: relative; }
+  .mc .eh, .det .eh { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .mc .et, .det .et { font-size: 13px; color: var(--muted); }
+  .mchips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+  .mchips button { border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+  .mchips button.on { background: var(--mint); color: #bfeede; border-color: transparent; }
+  #m-tabla { max-height: 620px; }
+  #m-tabla table { min-width: 1380px; }
+  #m-tabla th[data-s] { cursor: pointer; user-select: none; }
+  #m-tabla th[data-s]:hover { color: var(--fg); }
+  #m-tabla th:first-child, #m-tabla td:first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); }
+  #m-tabla th:first-child { z-index: 3; }
+  #m-tabla tr.fila { cursor: pointer; }
+  #m-tabla tr.fila:hover td { background: #16251f; }
+  #m-tabla tr.fila.sel td { background: #173a2d55; }
+  #m-tabla tr.fila.sel td:first-child { background: #15291f; }
+  #m-tabla tr.fila:hover td:first-child { background: #16251f; }
+  #m-tabla .chev { display: inline-block; width: 14px; color: var(--muted); transition: transform .15s; }
+  #m-tabla tr.sel .chev { transform: rotate(90deg); }
+  #m-tabla tfoot td { position: sticky; bottom: 0; background: var(--panel); }
+  #m-tabla tr.det > td { background: var(--field); padding: 12px 14px; white-space: normal; position: static; }
+  #m-tabla tr.det .det { position: sticky; left: 0; width: min(1100px, calc(100vw - 150px)); max-width: 100%; }
+  #m-tabla .dsub { font-size: 12px; color: var(--muted); line-height: 1.5; margin-top: 6px; }
+  .ana { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 16px; }
+  .ana h3 { font-size: 14px; font-weight: 600; margin: 0 0 10px; }
+  .ana .lead { font-size: 14px; line-height: 1.55; margin: 0 0 14px; color: var(--fg); }
+  .ana .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+  .ana .tile { background: var(--field); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+  .ana .tile .k { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .ana .tile .v { font-size: 16px; font-weight: 600; }
+  .ana .tile .d { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+  .ana .aviso { font-size: 12px; color: var(--muted); margin-top: 12px; }
+  .tt { position: absolute; pointer-events: none; background: #1b2a24; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.4); padding: 6px 10px; font-size: 12px; white-space: nowrap; z-index: 4; opacity: 0; }
+  .tt .d { color: var(--muted); }
+  .calhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .calhead h2 { font-family: var(--serif); font-weight: 400; font-size: 26px; margin: 0; }
+  .arrow { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--fg); cursor: pointer; font-size: 16px; }
+  .arrow:disabled { opacity: .35; cursor: default; }
+  .cal { position: relative; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; min-height: 230px; align-content: start; }
+  .cal .wd { font-size: 12px; color: var(--muted); text-align: center; }
+  .cal .day { border-radius: 12px; aspect-ratio: 1 / 1; display: grid; place-items: center; font-size: 12px; }
+  .cal .day.sold { color: #04100b; font-weight: 600; }
+  .cal .day.today { outline: 2px solid #9fe0bf; outline-offset: 1px; }
+  .leg { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .leg i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; vertical-align: -2px; margin-right: 4px; background: var(--leaf); }
+  tfoot td { font-weight: 600; border-top: 1px solid var(--line); padding-top: 10px; }
+  .tbox { overflow: auto; max-height: 440px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); white-space: nowrap; }
+  td { padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .n { text-align: right; }
+  tr:last-child td { border-bottom: 0; }
+  .pill { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; background: var(--mint); color: #9fe0bf; }
+  .pill.off { background: #1c2924; color: var(--muted); }
+  .pill.warn { background: var(--peach-soft); color: #ffb08f; }
+  .small { font-size: 12px; color: var(--muted); }
+  .funnel { display: grid; gap: 12px; }
+  .frow { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 10px; align-items: center; }
+  .fbar { position: relative; height: 28px; border-radius: 10px; background: var(--track); }
+  .fbar .b { position: absolute; inset: 0 auto 0 0; border-radius: 10px; background: var(--green); min-width: 4px; }
+  .fbar .v { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: #fff; }
+  .fbar .v.out { color: var(--fg); }
+  .conv { margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .conv b { color: var(--fg); font-size: 16px; font-weight: 600; }
+  .ledger .l { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px dashed var(--line); }
+  .ledger .l span:first-child { color: var(--muted); }
+  .ledger .l.tot { border-bottom: 0; padding-top: 12px; }
+  .ledger .l.tot span:first-child { color: var(--fg); font-weight: 600; }
+  .ledger .l.tot b { font-family: var(--serif); font-weight: 400; font-size: 26px; }
+  .alert { border-radius: 14px; padding: 10px 12px; background: var(--peach-soft); font-size: 12px; margin-top: 14px; color: #ffc9b0; }
+  .alert:empty { display: none; }
+  .err { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: inherit; color: var(--muted); font-size: 12px; text-align: center; padding: 12px; flex-wrap: wrap; }
+  .err::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--bad); flex: none; }
+  .skel { min-height: 1em; border-radius: 8px; background: linear-gradient(90deg, #17241f, #213229, #17241f); background-size: 200% 100%; animation: sk 1.2s linear infinite; color: transparent !important; }
+  @keyframes sk { to { background-position: -200% 0; } }
+  .btn { border: 0; border-radius: 999px; padding: 9px 16px; background: var(--green); color: #fff; font: 500 13px var(--sans); cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+  .btn.peach { background: var(--peach); color: #2b1208; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .mini { border: 0; background: transparent; color: var(--muted); cursor: pointer; font: 12px var(--sans); padding: 2px 6px; border-radius: 6px; }
+  .mini:hover { background: #1c2924; color: var(--bad); }
+  form.compra { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); align-items: end; }
+  label.f { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+  input, select { font: 14px var(--sans); padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--fg); width: 100%; color-scheme: dark; }
+  input:focus, select:focus { outline: 2px solid var(--leaf); outline-offset: 0; border-color: transparent; }
+  .modo { grid-column: 1 / -1; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+  .opt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; cursor: pointer; }
+  .opt input { width: auto; margin-top: 2px; accent-color: var(--green); }
+  .opt b { display: block; font-weight: 600; font-size: 13px; }
+  .opt span { font-size: 12px; color: var(--muted); }
+  .opt:has(input:checked) { border-color: var(--green); background: var(--mint); }
+  .formfoot { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .msg { font-size: 12px; color: var(--muted); }
+  .msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); }
+  .tcbox { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+  .tcbox label { max-width: 160px; }
+  details summary { cursor: pointer; font-weight: 500; }
+  details dl { margin: 10px 0 0; display: grid; gap: 8px; font-size: 13px; color: var(--muted); }
+  details dt { color: var(--fg); font-weight: 600; }
+  details dd { margin: 0; }
+  @media (max-width: 760px) {
+    .mv { grid-template-columns: minmax(0, 1fr); padding: 10px; }
+    .rail { position: static; flex-direction: row; min-height: 0; padding: 8px 12px; border-radius: 22px; justify-content: space-between; }
+    .logo { margin: 0; } .nav.on::before, .tip { display: none; }
+    .row.wide, .hero { grid-template-columns: minmax(0, 1fr); }
+    .chips { justify-content: flex-start; }
+    .frow { grid-template-columns: 7rem minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="mv">
+  <nav class="rail" aria-label="Secciones">
+    <div class="logo">M</div>
+    <button class="nav on" data-go="resumen" aria-label="Resumen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span class="tip">Resumen</span></button>
+    <button class="nav" data-go="ventas" aria-label="Ventas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="tip">Ventas</span></button>
+    <button class="nav" data-go="productos" aria-label="Productos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg><span class="tip">Productos y márgenes</span></button>
+    <button class="nav" data-go="compras" aria-label="Compras y costos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/><rect x="3" y="3" width="18" height="18" rx="5"/></svg><span class="tip">Compras y costos</span></button>
+    <button class="nav" data-go="pedidos" aria-label="Pedidos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12l2 5H4l2-5z"/><path d="M4 7v13a2 2 0 002 2h12a2 2 0 002-2V7"/><path d="M9 12h6"/></svg><span class="tip">Pedidos para enviar</span></button>
+    <button class="nav" data-go="publicidad" aria-label="Publicidad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 001 1h3l5 4V6L7 10H4a1 1 0 00-1 1z"/><path d="M16 9a4 4 0 010 6M19 6a8 8 0 010 12"/></svg><span class="tip">Publicidad y tráfico</span></button>
+    <button class="nav" data-go="caja" aria-label="Caja"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="3"/><path d="M2 10h20M6 15h4"/></svg><span class="tip">Caja y patrimonio</span></button>
+  </nav>
+
+  <main>
+    <div class="warnbar" id="tienda-aviso" hidden></div>
+    <div class="small" id="actualizado" style="text-align:right;padding:0 4px">Actualizado: —</div>
+
+    <section id="resumen" class="card hero">
+      <div>
+        <h1>Mauve, <i>relevamiento</i> del comercio</h1>
+        <p>Desde el lanzamiento (<span data-v="desde">—</span>) cobraste <b data-v="cobrado">—</b>. Después del costo de la mercadería vendida y Meta Ads, el resultado da <b data-v="resultado">—</b>.</p>
+      </div>
+      <div class="chips">
+        <span class="chip"><b data-v="pagos">—</b> pedidos pagos</span>
+        <span class="chip hot"><b data-v="pendientes">—</b> para enviar</span>
+        <span class="chip"><b data-v="vencidos">—</b> vencidos sin pagar</span>
+      </div>
+    </section>
+
+    <div class="row">
+      <div class="card kpi accent"><div class="lab">Cobrado · pedidos pagos</div><div class="big" data-v="cobrado">—</div><div class="sub">Ticket promedio <span data-v="ticket">—</span></div></div>
+      <div class="card kpi"><div class="lab">Margen bruto · cobrado − costo de lo vendido</div><div class="big" data-v="margen">—</div><div class="sub"><span data-v="margen_pct">—</span> de lo cobrado</div></div>
+      <div class="card kpi"><div class="lab">Gasto en Meta Ads</div><div class="big" data-v="meta_pesos">—</div><div class="sub"><span data-v="meta_usd">—</span> a <span data-v="tc">—</span> por dólar</div></div>
+      <div class="card kpi"><div class="lab">Resultado del período</div><div class="big" data-v="resultado">—</div><div class="sub">Antes de envíos, comisiones y otros gastos</div></div>
+    </div>
+
+    <div class="row wide" id="ventas">
+      <div class="card"><h2>Cobrado por día</h2><p class="note">Pedidos pagos, en pesos (hora de Montevideo)</p><div class="chart" id="barras"></div>
+        <div class="ana" id="analisis"></div></div>
+      <div class="card">
+        <div class="calhead"><button class="arrow" id="prev" aria-label="Mes anterior">‹</button><h2 id="mes">—</h2><button class="arrow" id="next" aria-label="Mes siguiente">›</button></div>
+        <div class="cal" id="cal"></div>
+        <div class="leg"><i></i>Día con ventas (más oscuro, más cobrado)</div>
+      </div>
+    </div>
+
+    <div class="card" id="productos">
+      <h2>Productos: ventas, costo y margen</h2>
+      <p class="note">Desde el lanzamiento · prendas físicas (un pack 3x1 son 3 prendas) · el costo de cada venta es el que regía en su fecha</p>
+      <div class="tbox"><table>
+        <thead><tr><th>Producto</th><th class="n">Pedidos</th><th class="n">Prendas vendidas</th><th class="n">Cobrado</th><th class="n">Costo vigente</th><th class="n">Costo de lo vendido</th><th class="n">Margen</th><th class="n">Margen %</th></tr></thead>
+        <tbody id="t-productos"></tbody>
+      </table></div>
+      <div class="alert" id="alerta-costos"></div>
+    </div>
+
+
+    <div class="row half">
+      <div class="card">
+        <h2>Costos vigentes</h2>
+        <p class="note">Costo por prenda que se usa hoy, y los anteriores si cambiaron desde una fecha</p>
+        <div class="tbox"><table><thead><tr><th>Producto</th><th class="n">Costo hoy</th><th>Historial</th></tr></thead><tbody id="t-costos"></tbody></table></div>
+      </div>
+      <div class="card">
+        <h2>Stock disponible</h2>
+        <p class="note">Compradas − vendidas, valuado al costo actual. Un número negativo indica compras que faltan cargar</p>
+        <div class="tbox"><table><thead><tr><th>Producto</th><th class="n">Compradas</th><th class="n">Vendidas</th><th class="n">Stock disponible</th><th class="n">Valor del stock</th></tr></thead><tbody id="t-stock"></tbody><tfoot id="t-stock-tot"></tfoot></table></div>
+      </div>
+    </div>
+
+    <div class="card" id="compras">
+      <h2>Historial de compras y costos</h2>
+      <p class="note">Salen del archivo compras.json del repositorio, en el orden en que se cargaron.</p>
+      <div class="tbox"><table><thead><tr><th>Fecha</th><th>Producto</th><th class="n">Unidades</th><th class="n">Costo por prenda</th><th class="n">Total</th><th>Aplica</th><th>Nota</th></tr></thead><tbody id="t-compras"></tbody></table></div>
+    </div>
+
+    <div class="card" id="pedidos">
+      <h2>Pedidos pagos para enviar</h2>
+      <p class="note">Pagos en Shopify y todavía sin marcar como enviados</p>
+      <div class="tbox"><table><thead><tr><th>Pedido</th><th>Fecha</th><th>Artículo</th><th class="n">Cantidad</th><th class="n">Total del pedido</th></tr></thead><tbody id="t-pendientes"></tbody></table></div>
+    </div>
+
+    <div class="row half" id="publicidad">
+      <div class="card">
+        <h2>De la visita a la compra</h2><p class="note">Sesiones en la tienda desde el lanzamiento</p>
+        <div class="funnel" id="embudo" style="min-height:150px"></div>
+        <div class="conv">Conversión: <b data-v="conversion">—</b> de las visitas terminan en compra</div>
+      </div>
+      <div class="card"><h2>De dónde llegan</h2><p class="note">Sesiones por origen desde el lanzamiento</p><div class="funnel" id="origen" style="min-height:150px"></div></div>
+    </div>
+
+    <div class="card" id="evolucion">
+      <h2>Evolución día por día</h2>
+      <p class="note">Cada punto es un día (hora de Montevideo). Pasá el mouse por encima para ver el detalle.</p>
+      <div class="mini" id="evo-graf"><div class="skel" style="height:150px"></div></div>
+      <div class="ana" id="evo-ana"></div>
+    </div>
+
+    <div class="card" id="meta">
+      <h2>Campañas de Meta Ads</h2>
+      <p class="note" id="m-nota">Gasto, alcance, ventas y rentabilidad de cada campaña · los montos de Meta están en dólares y se muestran en pesos al tipo de cambio de la sección Compras</p>
+      <div class="mfil">
+        <div class="seg" id="m-presets"><button type="button" data-p="todo" class="on">Todo</button><button type="button" data-p="7">Últimos 7 días</button><button type="button" data-p="14">Últimos 14 días</button><button type="button" data-p="mes">Este mes</button></div>
+        <label>Desde <input type="date" id="m-desde"></label>
+        <label>Hasta <input type="date" id="m-hasta"></label>
+        <label>Estado <select id="m-estado"><option value="todas">Todas</option><option value="ACTIVE">Activas</option><option value="PAUSED">Pausadas</option></select></label>
+      </div>
+      <div class="mkp" id="m-kpis"></div>
+      <div class="mc" id="m-cuenta"></div>
+      <div class="tbox mt" id="m-tabla"></div>
+      <div class="ana" id="m-ana"></div>
+    </div>
+
+    <div class="row half" id="caja">
+      <div class="card"><h2>Resultado del período</h2><p class="note">Solo carga como costo la mercadería que se vendió</p>
+        <div class="ledger">
+          <div class="l"><span>Cobrado</span><b data-v="cobrado">—</b></div>
+          <div class="l"><span>− Costo de la mercadería vendida</span><b data-v="cmv">—</b></div>
+          <div class="l"><span>= Margen bruto</span><b data-v="margen">—</b></div>
+          <div class="l"><span>− Meta Ads</span><b data-v="meta_pesos">—</b></div>
+          <div class="l tot"><span>= Resultado</span><b data-v="resultado">—</b></div>
+        </div></div>
+      <div class="card"><h2>Caja y patrimonio</h2><p class="note">La plata que entró y salió, más lo que quedó en mercadería</p>
+        <div class="ledger">
+          <div class="l"><span>Cobrado</span><b data-v="cobrado">—</b></div>
+          <div class="l"><span>− Compras a proveedores</span><b data-v="compras">—</b></div>
+          <div class="l"><span>− Meta Ads</span><b data-v="meta_pesos">—</b></div>
+          <div class="l"><span>= Flujo de caja</span><b data-v="caja">—</b></div>
+          <div class="l"><span>+ Mercadería sin vender, a costo</span><b data-v="valor_stock">—</b></div>
+          <div class="l tot"><span>= Resultado patrimonial</span><b data-v="patrimonial">—</b></div>
+        </div></div>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>Cómo se calcula y qué queda afuera</summary>
+        <dl>
+          <dt>Cobrado</dt><dd>Total de los pedidos pagos en Shopify. No cuenta la orden de prueba ni los <span data-v="vencidos">—</span> pedidos que vencieron sin pagarse (<span data-v="monto_vencido">—</span>).</dd>
+          <dt>Prendas vendidas</dt><dd>En los primeros pedidos el descuento de la promo iba sobre el pedido y cada unidad era una prenda. En los nuevos se paga el precio del pack y cada unidad es un pack: 3 corpiños, 2 bodys, 2 remeras, 3 bodys reductores o 2 bodys modeladores.</dd>
+          <dt>Costos</dt><dd>Cada venta toma el costo por prenda vigente en su fecha. “Desde esta fecha” cambia el costo solo para ventas de ese día en adelante; “corregir el histórico” lo reemplaza para todas. Si una venta es anterior al primer costo cargado, toma ese primer costo.</dd>
+          <dt>Resultado vs. resultado patrimonial</dt><dd>Coinciden cuando todas las compras están cargadas. Si un producto vendió más de lo que figura comprado, el resultado patrimonial queda más alto hasta que se carguen esas compras.</dd>
+          <dt>Queda afuera</dt><dd>Envíos, comisión de Mercado Pago u otra pasarela y otros gastos fijos.</dd>
+        </dl>
+      </details>
+    </div>
+  </main>
+</div>
+
+<script type="application/json" id="data">{{DATA_JSON}}</script>
+<script>
+{{MV_JS}}
+</script>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const n0 = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 0 });
+  const n2 = new Intl.NumberFormat('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pesos = (x) => x == null ? '—' : (x < -0.5 ? '−$' : '$') + n0.format(Math.abs(x));
+  const pesos2 = (x) => x == null ? '—' : '$' + n2.format(x);
+  const pct = (x) => new Intl.NumberFormat('es-UY', { style: 'percent', maximumFractionDigits: 1 }).format(x);
+  const fecha = (d) => new Intl.DateTimeFormat('es-UY', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d + 'T00:00:00Z'));
+  const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const DIASP = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
+  const DIAS3 = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  const dow = (d) => new Date(d + 'T00:00:00Z').getUTCDay();
+  const fechaD = (d) => DIAS[dow(d)] + ' ' + new Intl.DateTimeFormat('es-UY', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(d + 'T00:00:00Z'));
+  const fechaC = (d) => DIAS3[dow(d)] + ' ' + new Intl.DateTimeFormat('es-UY', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d + 'T00:00:00Z'));
+  const fechaL = (d) => new Intl.DateTimeFormat('es-UY', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(new Date(d + 'T00:00:00Z'));
+  const hoy = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+
+  const TC_DEFECTO = 40.20;
+  const S = {
+    orders: { st: 'loading' }, funnel: { st: 'loading' }, traffic: { st: 'loading' }, funnelDia: { st: 'loading' }, trafficDia: { st: 'loading' }, mday: { map: new Map(), fallos: new Map(), total: 0, approval: false, cargando: true },
+    mfil: { preset: 'todo', desde: null, hasta: null, estado: 'todas' }, msel: null, mmet: 'gasto', mmetC: 'gasto', msort: { k: 'gasto', dir: -1 }, R: null, meta: { st: 'loading' }, shop: { st: 'loading' },
+    compras: { st: 'loading', rows: [] }, config: { tipo_cambio: TC_DEFECTO }, mes: null, db: null, canWrite: true,
+  };
+
+  // ---------- Datos embebidos (generados por build.js) ----------
+  const DATA = JSON.parse(document.getElementById('data').textContent);
+  MV.configurar(DATA.config || {});
+  (function cargar() {
+    const ok = (data) => ({ st: 'ok', data });
+    S.shop = ok(DATA.tienda);
+    S.orders = ok(DATA.lines); S.funnel = ok(DATA.funnel); S.traffic = ok(DATA.traffic); S.funnelDia = ok(DATA.funnelDia); S.trafficDia = ok(DATA.trafficDia);
+    const map = new Map(Object.entries(DATA.meta.dias));
+    S.mday = { map, fallos: new Map(), total: map.size, approval: false, cargando: false };
+    const por = new Map();
+    for (const rows of map.values()) for (const c of rows) por.set(c.id, (por.get(c.id) || 0) + c.gasto);
+    S.meta = ok([...por].map(([id, g]) => ({ gasto_usd: g })));
+    S.compras = { st: 'ok', rows: DATA.compras };
+    S.config = { tipo_cambio: Number(DATA.config.tipo_cambio) > 0 ? Number(DATA.config.tipo_cambio) : TC_DEFECTO };
+    S.canWrite = false;
+    document.getElementById('actualizado').textContent = 'Actualizado: ' + DATA.actualizado_en + ' (hora de Montevideo)';
+  })();
+
+
+  $$('.nav').forEach((b) => b.addEventListener('click', () => {
+    const el = document.getElementById(b.dataset.go); if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $$('.nav').forEach((x) => x.classList.toggle('on', x === b));
+  }));
+  const moverMes = (d) => { const meses = S.meses || []; const i = meses.indexOf(S.mes) + d; if (i >= 0 && i < meses.length) { S.mes = meses[i]; render(); } };
+  $('#prev').addEventListener('click', () => moverMes(-1));
+  $('#next').addEventListener('click', () => moverMes(1));
+
+  // ---------- Dibujo ----------
+  const stateBox = (el, s, cols) => {
+    if (s.st === 'ok') return false;
+    const inner = s.st === 'loading' ? '<div class="skel" style="height:120px"></div>' : `<div class="err">${esc(s.msg)}${s.st === 'approval' ? ` <button class="btn peach" data-allow="${s.w.key}">Permitir</button>` : ''}</div>`;
+    el.innerHTML = cols ? `<tr><td colspan="${cols}">${inner}</td></tr>` : inner;
+    return true;
+  };
+  document.addEventListener('click', (ev) => { const b = ev.target.closest('[data-allow]'); if (b && window.__mvAllow) window.__mvAllow(b.dataset.allow); });
+
+  function setV(name, text, signo) {
+    $$(`[data-v="${name}"]`).forEach((el) => {
+      el.textContent = text;
+      el.classList.toggle('skel', text === '…');
+      if (signo !== undefined) { el.classList.toggle('neg', signo < 0); el.classList.toggle('pos', signo > 0); }
+    });
+  }
+
+  function render() {
+    const ordersOk = S.orders.st === 'ok';
+    const metaOk = S.meta.st === 'ok';
+    const comprasOk = S.compras.st === 'ok';
+    const R = MV.calcular({ lines: ordersOk ? S.orders.data : null, compras: S.compras.rows || [], metaRows: metaOk ? S.meta.data : null, tipoCambio: S.config.tipo_cambio });
+    const T = R.tot;
+    const W = (ok, v) => ok ? v : (S.orders.st === 'loading' || S.meta.st === 'loading' || S.compras.st === 'loading' ? '…' : '—');
+
+    // Aviso de tienda
+    const av = $('#tienda-aviso');
+    if (S.shop.st === 'ok' && S.shop.data && !/mauve/i.test(S.shop.data)) {
+      av.hidden = false;
+      av.textContent = `Ojo: Shopify está conectado a la tienda “${S.shop.data}”, no a Mauve. Las ventas y pedidos que ves son de esa tienda. Cambiá la conexión de Shopify a Mauve para ver los números correctos.`;
+    } else av.hidden = true;
+
+    setV('desde', W(ordersOk && R.ventasDia.length, R.ventasDia.length ? fechaL(R.ventasDia[0].dia) : '—'));
+    setV('cobrado', W(ordersOk, pesos(T.cobrado)));
+    setV('ticket', W(ordersOk, pesos(T.ticket)));
+    setV('pagos', W(ordersOk, String(T.pedidos_pagos)));
+    setV('pendientes', W(ordersOk, String(T.pendientes)));
+    setV('vencidos', W(ordersOk, String(T.vencidos)));
+    setV('monto_vencido', W(ordersOk, pesos(T.monto_vencido)));
+    const cOk = ordersOk && comprasOk;
+    setV('cmv', W(cOk, pesos(T.cmv)));
+    setV('margen', W(cOk, pesos(T.margen)));
+    setV('margen_pct', W(cOk, pct(T.margen_pct)));
+    setV('meta_pesos', W(metaOk, pesos(T.meta_pesos)));
+    setV('meta_usd', W(metaOk, T.meta_usd == null ? '—' : 'U$S ' + n2.format(T.meta_usd)));
+    setV('tc', '$' + n2.format(S.config.tipo_cambio));
+    setV('resultado', W(cOk && metaOk, pesos(T.resultado)), cOk && metaOk ? T.resultado : 0);
+    setV('compras', W(comprasOk, pesos(T.compras)));
+    setV('caja', W(cOk && metaOk, pesos(T.caja)), cOk && metaOk ? T.caja : 0);
+    setV('valor_stock', W(cOk, pesos(T.valor_stock)));
+    setV('patrimonial', W(cOk && metaOk, pesos(T.patrimonial)), cOk && metaOk ? T.patrimonial : 0);
+    if (S.funnel.st === 'ok' && S.funnel.data[0]) setV('conversion', pct(Number(S.funnel.data[0].conversion_rate))); else setV('conversion', S.funnel.st === 'loading' ? '…' : '—');
+
+    drawBarras(R); drawCal(R);
+    drawProductos(R); drawCostos(R); drawStock(R); drawCompras(); drawPendientes(R); drawEmbudo(); drawOrigen(); try { drawEvolucion(); } catch (e) { $('#evo-graf').innerHTML = '<div class="err" style="grid-column:1/-1">No pude armar la evolución diaria con los datos de Shopify.</div>'; $('#evo-ana').innerHTML = ''; } S.R = R; try { drawMeta(); } catch (e) { $('#m-kpis').innerHTML = '<div class="err">No pude armar la sección de Meta Ads con los datos recibidos.</div>'; console.error(e); }
+  }
+
+  function drawBarras(R) {
+    const el = $('#barras');
+    if (stateBox(el, S.orders)) return;
+    const rows = R.ventasDia;
+    el.innerHTML = '';
+    if (!rows.length) { el.innerHTML = '<div class="err">Todavía no hay ventas.</div>'; return; }
+    const Wd = Math.max(280, el.clientWidth), H = 246, m = { t: 10, r: 6, b: 46, l: 0 };
+    const y = d3.scaleLinear([0, d3.max(rows, (r) => r.cobrado) || 1], [H - m.b, m.t]).nice();
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${Wd} ${H}`);
+    const ticks = y.ticks(4);
+    const labels = svg.append('g').selectAll('text').data(ticks).join('text').attr('y', (t) => y(t) + 4).attr('x', 0).attr('fill', '#8fa298').attr('font-size', 11).text(pesos);
+    m.l = (d3.max(labels.nodes(), (n) => n.getComputedTextLength()) || 30) + 8;
+    const x = d3.scaleBand(rows.map((r) => r.dia), [m.l, Wd - m.r]).padding(0.25);
+    svg.insert('g', ':first-child').selectAll('line').data(ticks).join('line').attr('x1', m.l).attr('x2', Wd - m.r).attr('y1', y).attr('y2', y).attr('stroke', '#22332c');
+    const bw = Math.min(32, x.bandwidth());
+    const finde = (r) => { const w = dow(r.dia); return w === 0 || w === 6; };
+    const bars = svg.append('g').selectAll('rect').data(rows).join('rect').attr('x', (r) => x(r.dia) + (x.bandwidth() - bw) / 2).attr('width', bw)
+      .attr('y', (r) => y(r.cobrado)).attr('height', (r) => Math.max(0, y(0) - y(r.cobrado))).attr('rx', 6).attr('fill', (r) => r.cobrado ? (finde(r) ? '#ef8a5f' : '#3fa37c') : 'transparent');
+    // Etiquetas: día de la semana arriba, número de día abajo (con mes al inicio y en cada cambio de mes)
+    const every = Math.max(1, Math.ceil(30 / x.step()));
+    const lab = svg.append('g').selectAll('g').data(rows.filter((r, i) => i % every === 0)).join('g')
+      .attr('transform', (r) => `translate(${x(r.dia) + x.bandwidth() / 2},${H - m.b + 16})`).attr('text-anchor', 'middle');
+    lab.append('text').attr('fill', (r) => finde(r) ? '#ef8a5f' : '#8fa298').attr('font-size', 11).attr('font-weight', 600).text((r) => DIAS3[dow(r.dia)]);
+    lab.append('text').attr('y', 15).attr('fill', '#8fa298').attr('font-size', 11).text((r) => {
+      const i = rows.indexOf(r), nuevoMes = i === 0 || r.dia.slice(8) === '01' || r.dia.slice(5, 7) !== rows[Math.max(0, i - every)].dia.slice(5, 7);
+      return nuevoMes ? fecha(r.dia) : String(Number(r.dia.slice(8)));
+    });
+    const tt = d3.select(el).append('div').attr('class', 'tt');
+    svg.append('g').selectAll('rect').data(rows).join('rect').attr('x', (r) => x(r.dia)).attr('width', x.step()).attr('y', m.t).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointerenter pointermove', (ev, r) => {
+        bars.attr('fill-opacity', (b) => b === r ? 1 : 0.45);
+        tt.style('opacity', 1).html(`<div class="d">${esc(fechaD(r.dia))}</div><div>${esc(pesos(r.cobrado))} · ${r.pedidos} ${r.pedidos === 1 ? 'pedido' : 'pedidos'}</div>`);
+        const bw2 = el.getBoundingClientRect().width, tw = tt.node().offsetWidth, px = (x(r.dia) + x.bandwidth() / 2) / Wd * bw2;
+        tt.style('left', Math.min(bw2 - tw, Math.max(0, px - tw / 2)) + 'px').style('top', '0px');
+      }).on('pointerleave', () => { bars.attr('fill-opacity', 1); tt.style('opacity', 0); });
+    drawAnalisis(R);
+  }
+
+  function drawAnalisis(R) {
+    const el = $('#analisis');
+    const rows = R.ventasDia;
+    if (!rows.length) { el.innerHTML = ''; return; }
+    const hoyD = hoy();
+    const cerrados = rows.filter((r) => r.dia < hoyD);            // días completos (hoy todavía está en curso)
+    const base = cerrados.length >= 3 ? cerrados : rows;
+    const total = d3.sum(base, (r) => r.cobrado), npag = d3.sum(base, (r) => r.pedidos);
+    if (!total) { el.innerHTML = ''; return; }
+    const prom = total / base.length;
+    const mejor = base.reduce((a, r) => r.cobrado > a.cobrado ? r : a, base[0]);
+    const sinV = base.filter((r) => !r.cobrado);
+
+    // día de la semana: promedio por día calendario
+    const sem = DIAS.map((n, w) => { const rs = base.filter((r) => dow(r.dia) === w); return { w, n, dias: rs.length, tot: d3.sum(rs, (r) => r.cobrado), prom: rs.length ? d3.sum(rs, (r) => r.cobrado) / rs.length : 0 }; }).filter((x) => x.dias);
+    const topSem = sem.reduce((a, x) => x.prom > a.prom ? x : a, sem[0]);
+    const flojoSem = sem.reduce((a, x) => x.prom < a.prom ? x : a, sem[0]);
+
+    // fin de semana vs semana
+    const fs = base.filter((r) => [0, 6].includes(dow(r.dia))), ent = base.filter((r) => ![0, 6].includes(dow(r.dia)));
+    const promFs = fs.length ? d3.sum(fs, (r) => r.cobrado) / fs.length : 0, promEnt = ent.length ? d3.sum(ent, (r) => r.cobrado) / ent.length : 0;
+
+    // tendencia: últimos 7 días completos vs los 7 anteriores
+    let tend = null;
+    if (base.length >= 14) {
+      const u = base.slice(-7), p = base.slice(-14, -7);
+      const tu = d3.sum(u, (r) => r.cobrado), tp = d3.sum(p, (r) => r.cobrado);
+      if (tp > 0) tend = { u: tu, p: tp, d: tu / tp - 1, desde: u[0].dia, hasta: u[u.length - 1].dia };
+    }
+    // concentración: los 3 mejores días
+    const top3 = [...base].sort((a, b) => b.cobrado - a.cobrado).slice(0, 3);
+    const share3 = d3.sum(top3, (r) => r.cobrado) / total;
+
+    const lead = [];
+    lead.push(`En ${base.length} días completos se cobraron <b>${esc(pesos(total))}</b> en ${npag} pedidos pagos, un promedio de <b>${esc(pesos(prom))} por día</b>.`);
+    lead.push(`El mejor día fue el <b>${esc(fechaD(mejor.dia))}</b> (${esc(pesos(mejor.cobrado))}).`);
+    if (sem.length >= 5 && topSem.n !== flojoSem.n) lead.push(`Por día de la semana, los <b>${esc(DIASP[topSem.w])}</b> son los más fuertes (${esc(pesos(topSem.prom))} en promedio) y los <b>${esc(DIASP[flojoSem.w])}</b> los más flojos (${esc(pesos(flojoSem.prom))}).`);
+    if (tend) lead.push(tend.d >= 0.05 ? `Las ventas vienen <b>subiendo</b>: los últimos 7 días cobraron ${esc(pct(tend.d))} más que la semana anterior.` : tend.d <= -0.05 ? `Las ventas vienen <b>bajando</b>: los últimos 7 días cobraron ${esc(pct(-tend.d))} menos que la semana anterior.` : `Las ventas están <b>estables</b> frente a la semana anterior.`);
+
+    const tile = (k, v, d) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
+    const tiles = [];
+    tiles.push(tile('Mejor día', esc(fechaC(mejor.dia)), `${esc(pesos(mejor.cobrado))} · ${mejor.pedidos} ${mejor.pedidos === 1 ? 'pedido' : 'pedidos'}`));
+    if (sem.length >= 5) tiles.push(tile('Día de la semana más fuerte', esc(topSem.n), `${esc(pesos(topSem.prom))} por día en promedio (${topSem.dias} ${topSem.dias === 1 ? 'día' : 'días'} medidos)`));
+    if (fs.length && ent.length) tiles.push(tile('Fin de semana vs. semana', promFs >= promEnt ? 'Rinde más el finde' : 'Rinde más la semana', `Sáb y dom: ${esc(pesos(promFs))} por día · Lun a vie: ${esc(pesos(promEnt))}`));
+    if (tend) tiles.push(tile('Últimos 7 días', `${tend.d >= 0 ? '▲' : '▼'} ${esc(pct(Math.abs(tend.d)))}`, `${esc(pesos(tend.u))} vs. ${esc(pesos(tend.p))} los 7 anteriores`));
+    tiles.push(tile('Días sin ventas', String(sinV.length), sinV.length ? esc(sinV.slice(0, 6).map((r) => fechaC(r.dia)).join(' · ')) + (sinV.length > 6 ? '…' : '') : 'Vendieron todos los días'));
+    tiles.push(tile('Concentración', esc(pct(share3)), `de lo cobrado salió de solo 3 días (${esc(top3.map((r) => fecha(r.dia)).join(', '))})`));
+
+    const aviso = cerrados.length < rows.length ? 'No cuenta hoy porque el día sigue en curso. ' : '';
+    el.innerHTML = `<h3>Lectura general de las ventas</h3><p class="lead">${lead.join(' ')}</p><div class="tiles">${tiles.join('')}</div><div class="aviso">${aviso}Con pocas semanas de datos, los promedios por día de la semana son orientativos: cada uno se apoya en ${Math.min(...sem.map((x) => x.dias))} a ${Math.max(...sem.map((x) => x.dias))} días.</div>`;
+  }
+
+  function drawCal(R) {
+    const el = $('#cal'), h = $('#mes');
+    if (S.orders.st !== 'ok' || !R.ventasDia.length) { el.innerHTML = S.orders.st === 'loading' ? '<div class="skel" style="grid-column:1/-1;height:200px"></div>' : ''; h.textContent = '—'; return; }
+    S.meses = [...new Set(R.ventasDia.map((r) => r.dia.slice(0, 7)))];
+    if (!S.meses.includes(S.mes)) S.mes = S.meses[S.meses.length - 1];
+    const t = new Intl.DateTimeFormat('es-UY', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(S.mes + '-01T00:00:00Z'));
+    h.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    $('#prev').disabled = S.meses.indexOf(S.mes) <= 0; $('#next').disabled = S.meses.indexOf(S.mes) >= S.meses.length - 1;
+    const porDia = new Map(R.ventasDia.map((r) => [r.dia, r]));
+    const max = d3.max(R.ventasDia, (r) => r.cobrado) || 1;
+    const ultimo = R.ventasDia[R.ventasDia.length - 1].dia;
+    let html = ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((w) => `<div class="wd">${w}</div>`).join('');
+    const first = new Date(S.mes + '-01T00:00:00Z');
+    html += '<div></div>'.repeat((first.getUTCDay() + 6) % 7);
+    for (let d = new Date(first); d.getUTCMonth() === first.getUTCMonth(); d.setUTCDate(d.getUTCDate() + 1)) {
+      const k = d.toISOString().slice(0, 10), r = porDia.get(k);
+      const bg = r && r.cobrado ? d3.interpolateRgb('#1f5c45', '#5fd19b')(Math.sqrt(r.cobrado / max)) : r ? '#16241f' : 'transparent';
+      html += `<div class="day${r && r.cobrado ? ' sold' : ''}${k === ultimo ? ' today' : ''}" style="background:${bg}" data-k="${k}">${d.getUTCDate()}</div>`;
+    }
+    el.innerHTML = html + '<div class="tt"></div>';
+    const tt = el.querySelector('.tt');
+    el.querySelectorAll('.day[data-k]').forEach((c) => {
+      const r = porDia.get(c.dataset.k); if (!r) return;
+      c.addEventListener('pointerenter', () => {
+        tt.innerHTML = `<div class="d">${esc(fecha(c.dataset.k))}</div><div>${esc(pesos(r.cobrado))} · ${r.pedidos} ${r.pedidos === 1 ? 'pedido' : 'pedidos'}</div>`;
+        tt.style.opacity = 1;
+        const tw = tt.offsetWidth;
+        tt.style.left = Math.min(el.clientWidth - tw, Math.max(0, c.offsetLeft + c.offsetWidth / 2 - tw / 2)) + 'px';
+        tt.style.top = Math.max(0, c.offsetTop - 44) + 'px';
+      });
+      c.addEventListener('pointerleave', () => { tt.style.opacity = 0; });
+    });
+  }
+
+  function drawProductos(R) {
+    const el = $('#t-productos');
+    if (stateBox(el, S.orders, 8)) return;
+    el.innerHTML = R.productos.map((p) => {
+      const sinC = p.costo_actual == null;
+      const mg = p.margen;
+      return `<tr><td>${esc(p.producto)}</td><td class="n">${p.pedidos}</td><td class="n">${p.vendidas}</td><td class="n">${pesos(p.cobrado)}</td>
+        <td class="n">${sinC ? '<span class="pill warn">Sin cargar</span>' : pesos2(p.costo_actual)}</td>
+        <td class="n">${sinC && p.vendidas ? '—' : pesos(p.costo_vendido)}</td>
+        <td class="n ${mg == null ? '' : mg < 0 ? 'neg' : 'pos'}">${mg == null || !p.vendidas ? '—' : pesos(mg)}</td>
+        <td class="n">${mg == null || !p.cobrado ? '—' : pct(mg / p.cobrado)}</td></tr>`;
+    }).join('');
+    const faltan = R.productos.filter((p) => p.costo_actual == null && p.vendidas > 0).map((p) => p.producto);
+    const sinCosto = R.productos.filter((p) => p.costo_actual == null).map((p) => p.producto);
+    $('#alerta-costos').textContent = faltan.length ? `${faltan.join(', ')} ya tiene ventas pero no tiene costo cargado: su margen no se puede calcular y no entra en el costo de lo vendido. Cargalo en compras.json.`
+      : sinCosto.length ? `${sinCosto.join(', ')} todavía no tiene costo cargado.` : '';
+  }
+
+  function drawCostos(R) {
+    const el = $('#t-costos');
+    if (stateBox(el, S.compras, 3)) return;
+    el.innerHTML = R.productos.map((p) => {
+      const tl = p.linea;
+      const hist = tl.length > 1 ? tl.map((s) => `${s.desde ? 'desde ' + fechaL(s.desde) : 'inicial'}: ${pesos2(s.costo)}`).join(' · ') : tl.length ? 'Mismo costo para todas las ventas' : '';
+      return `<tr><td>${esc(p.producto)}</td><td class="n">${p.costo_actual == null ? '<span class="pill warn">Sin cargar</span>' : pesos2(p.costo_actual)}</td><td class="small" style="white-space:normal">${esc(hist)}</td></tr>`;
+    }).join('');
+  }
+
+  function drawStock(R) {
+    const el = $('#t-stock'), tf = $('#t-stock-tot');
+    if (stateBox(el, S.compras, 5)) { tf.innerHTML = ''; return; }
+    if (S.orders.st !== 'ok') { stateBox(el, S.orders, 5); tf.innerHTML = ''; return; }
+    el.innerHTML = R.productos.map((p) => {
+      const sinCosto = p.stock > 0 && p.costo_actual == null;
+      return `<tr><td>${esc(p.producto)}</td><td class="n">${p.compradas}</td><td class="n">${p.vendidas}</td>
+      <td class="n ${p.stock < 0 ? 'neg' : ''}">${p.stock}</td><td class="n">${sinCosto ? '<span class="pill warn">Sin costo</span>' : p.stock > 0 ? pesos(p.valor_stock) : '—'}</td></tr>`;
+    }).join('');
+    const uds = R.productos.reduce((s, p) => s + Math.max(0, p.stock), 0);
+    const comp = R.productos.reduce((s, p) => s + p.compradas, 0), vend = R.productos.reduce((s, p) => s + p.vendidas, 0);
+    tf.innerHTML = `<tr><td>Total general</td><td class="n">${comp}</td><td class="n">${vend}</td><td class="n">${uds}</td><td class="n">${pesos(R.tot.valor_stock)}</td></tr>`;
+  }
+
+  function drawCompras() {
+    const el = $('#t-compras');
+    if (stateBox(el, S.compras, 8)) return;
+    const rows = [...S.compras.rows].sort((a, b) => String(b.creado).localeCompare(String(a.creado)));
+    if (!rows.length) { el.innerHTML = '<tr><td colspan="8" class="small">Todavía no hay compras cargadas.</td></tr>'; return; }
+    el.innerHTML = rows.map((c) => {
+      const conf = S.confirm === c.id;
+      const acc = !S.canWrite ? '' : conf ? `<span class="small">¿Borrar?</span> <button class="mini" data-act="si" type="button">Sí</button><button class="mini" data-act="no" type="button">No</button>` : `<button class="mini" data-act="del" type="button" aria-label="Borrar">Borrar</button>`;
+      return `<tr data-id="${esc(c.id)}"><td>${esc(c.fecha ? fechaL(c.fecha) : '')}</td><td>${esc(c.producto)}</td><td class="n">${Number(c.unidades) || 0}</td><td class="n">${pesos2(Number(c.costo_unitario))}</td>
+        <td class="n">${pesos((Number(c.unidades) || 0) * (Number(c.costo_unitario) || 0))}</td>
+        <td>${c.modo === 'historico' ? '<span class="pill">Todas las ventas</span>' : '<span class="pill off">Desde su fecha</span>'}</td>
+        <td class="small" style="white-space:normal">${esc(c.nota)}</td><td class="n">${acc}</td></tr>`;
+    }).join('');
+  }
+
+  function drawPendientes(R) {
+    const el = $('#t-pendientes');
+    if (stateBox(el, S.orders, 5)) return;
+    if (!R.pendientes.length) { el.innerHTML = '<tr><td colspan="5" class="small">No hay pedidos pagos pendientes de envío.</td></tr>'; return; }
+    let prev = null;
+    el.innerHTML = R.pendientes.map((r) => { const same = r.pedido === prev; prev = r.pedido;
+      return `<tr><td>${same ? '' : esc(r.pedido)}</td><td>${same ? '' : esc(fecha(r.dia))}</td><td>${esc(r.articulo)}</td><td class="n">${r.cantidad}</td><td class="n">${same ? '' : pesos(r.total)}</td></tr>`; }).join('');
+  }
+
+  const barRow = (label, v, w, txt, light) => `<div class="frow"><span>${esc(label)}</span><div class="fbar"><div class="b" style="width:${w}%;${light ? 'background:#2a6b52' : ''}"></div><span class="v${w < 26 ? ' out' : ''}" style="${w < 26 ? `left:calc(${w}% + 8px)` : ''}">${esc(txt)}</span></div></div>`;
+
+  // ---------- Evolución diaria del embudo y del origen ----------
+  const ORIGEN = [['social', 'Redes sociales', '#3fa37c'], ['direct', 'Directo', '#ef8a5f'], ['otros', 'Otros', '#8fa298']];
+  function lineas(el, dias, series, fmt, alto, opt) {
+    opt = opt || {};
+    const Wd = Math.max(240, el.clientWidth), H = alto || 130, m = { t: 8, r: 8, b: 20, l: 6 };
+    const mx = Math.max(d3.max(series, (s) => d3.max(s.vals)) || 0, opt.ref ? opt.ref.v : 0) || 1;
+    const y = d3.scaleLinear([0, mx], [H - m.b, m.t]).nice(3);
+    el.innerHTML = '';
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${Wd} ${H}`);
+    if (opt.ylab) { const lb = svg.append('g').selectAll('text').data(y.ticks(4)).join('text').attr('y', (t) => y(t) + 4).attr('x', 0).attr('fill', '#8fa298').attr('font-size', 11).text((t) => fmt(t)); m.l = (d3.max(lb.nodes(), (n) => n.getComputedTextLength()) || 20) + 8; }
+    const x = d3.scalePoint(dias, [m.l + 4, Wd - m.r - 4]);
+    svg.append('g').selectAll('line').data(y.ticks(opt.ylab ? 4 : 3)).join('line').attr('x1', m.l).attr('x2', Wd - m.r).attr('y1', y).attr('y2', y).attr('stroke', '#22332c');
+    const idx = [0, Math.floor((dias.length - 1) / 2), dias.length - 1];
+    svg.append('g').selectAll('text').data(idx).join('text').attr('x', (i) => x(dias[i])).attr('y', H - 5).attr('fill', '#8fa298').attr('font-size', 11)
+      .attr('text-anchor', (i, k) => k === 0 ? 'start' : k === 2 ? 'end' : 'middle').text((i) => fecha(dias[i]));
+    series.forEach((s, k) => {
+      const ln = d3.line().defined((v) => v != null).x((v, i) => x(dias[i])).y((v) => y(v)).curve(d3.curveMonotoneX);
+      if (series.length === 1) svg.append('path').attr('d', d3.area().defined((v) => v != null).x((v, i) => x(dias[i])).y0(y(0)).y1((v) => y(v)).curve(d3.curveMonotoneX)(s.vals)).attr('fill', s.color).attr('opacity', 0.14);
+      svg.append('path').attr('d', ln(s.vals)).attr('fill', 'none').attr('stroke', s.color).attr('stroke-width', 2).attr('stroke-linejoin', 'round');
+      if (opt.dots) svg.append('g').selectAll('circle').data(s.vals.map((v, i) => [v, i]).filter((p) => p[0] != null)).join('circle').attr('cx', (p) => x(dias[p[1]])).attr('cy', (p) => y(p[0])).attr('r', 2.6).attr('fill', s.color);
+    });
+    if (opt.ref) { svg.append('line').attr('x1', m.l).attr('x2', Wd - m.r).attr('y1', y(opt.ref.v)).attr('y2', y(opt.ref.v)).attr('stroke', '#ef8a5f').attr('stroke-dasharray', '4 4').attr('opacity', 0.9); svg.append('text').attr('x', Wd - m.r).attr('y', y(opt.ref.v) - 4).attr('text-anchor', 'end').attr('fill', '#ef8a5f').attr('font-size', 11).text(opt.ref.label); }
+    const rule = svg.append('line').attr('y1', m.t).attr('y2', H - m.b).attr('stroke', '#8fa298').attr('stroke-dasharray', '3 3').attr('opacity', 0);
+    const dots = series.map((s) => svg.append('circle').attr('r', 3.5).attr('fill', s.color).attr('opacity', 0));
+    const tt = d3.select(el).append('div').attr('class', 'tt');
+    const paso = x.step();
+    svg.append('rect').attr('x', 0).attr('y', 0).attr('width', Wd).attr('height', H).attr('fill', 'transparent')
+      .on('pointermove pointerenter', (ev) => {
+        const px = (ev.clientX - svg.node().getBoundingClientRect().left) / svg.node().getBoundingClientRect().width * Wd;
+        const i = Math.max(0, Math.min(dias.length - 1, Math.round((px - m.l - 4) / paso)));
+        rule.attr('x1', x(dias[i])).attr('x2', x(dias[i])).attr('opacity', 1);
+        dots.forEach((d, k) => d.attr('cx', x(dias[i])).attr('cy', series[k].vals[i] == null ? 0 : y(series[k].vals[i])).attr('opacity', series[k].vals[i] == null ? 0 : 1));
+        tt.style('opacity', 1).html(`<div class="d">${esc(fechaD(dias[i]))}</div>` + series.map((s) => `<div>${series.length > 1 ? `<span style="color:${s.color}">●</span> ${esc(s.nombre)}: ` : ''}${esc(s.vals[i] == null ? 'sin datos' : fmt(s.vals[i]))}</div>`).join(''));
+        const bw2 = el.getBoundingClientRect().width, tw = tt.node().offsetWidth, pp = x(dias[i]) / Wd * bw2;
+        tt.style('left', Math.min(bw2 - tw, Math.max(0, pp - tw / 2)) + 'px').style('top', '-4px');
+      }).on('pointerleave', () => { rule.attr('opacity', 0); dots.forEach((d) => d.attr('opacity', 0)); tt.style('opacity', 0); });
+  }
+
+  function drawEvolucion() {
+    const box = $('#evo-graf'), ana = $('#evo-ana');
+    const bad = [S.funnelDia, S.trafficDia].find((q) => q.st !== 'ok');
+    if (bad) { if (bad.st === 'loading') { box.innerHTML = '<div class="skel" style="height:150px;grid-column:1/-1"></div>'; } else box.innerHTML = `<div class="err" style="grid-column:1/-1">${esc(bad.msg)}${bad.st === 'approval' ? ` <button class="btn peach" data-allow="${bad.w.key}">Permitir</button>` : ''}</div>`; ana.innerHTML = ''; return; }
+    const F = S.funnelDia.data.map((r) => ({ dia: String(r.day).slice(0, 10), v: Number(r.sessions) || 0, c: Number(r.sessions_with_cart_additions) || 0, p: Number(r.sessions_that_reached_checkout) || 0, k: Number(r.sessions_that_completed_checkout) || 0 }));
+    if (!F.length) { box.innerHTML = '<div class="err" style="grid-column:1/-1">Todavía no hay visitas.</div>'; ana.innerHTML = ''; return; }
+    const dias = F.map((r) => r.dia);
+    const T = new Map(dias.map((d) => [d, { social: 0, direct: 0, otros: 0 }]));
+    for (const r of S.trafficDia.data) { const d = String(r.day).slice(0, 10), t = T.get(d); if (!t) continue; const k = r.referrer_source === 'social' ? 'social' : r.referrer_source === 'direct' ? 'direct' : 'otros'; t[k] += Number(r.sessions) || 0; }
+    const conv = F.map((r) => r.v ? r.k / r.v : 0);
+    const sum = (a) => d3.sum(a);
+    const n = (x) => n0.format(x);
+    const defs = [['Visitas', F.map((r) => r.v), '#3fa37c', n], ['Agregaron al carrito', F.map((r) => r.c), '#5fd19b', n], ['Llegaron al pago', F.map((r) => r.p), '#ef8a5f', n], ['Compraron', F.map((r) => r.k), '#f2b48f', n]];
+    box.innerHTML = defs.map(([t, vals]) => `<div class="m"><div class="eh"><span class="et">${t}</span><span class="ev">${n(sum(vals))}</span></div><div class="g"></div></div>`).join('')
+      + `<div class="m dos"><div class="eh"><span class="et">Conversión diaria (compras / visitas)</span><span class="ev">${pct(sum(F.map((r) => r.k)) / (sum(F.map((r) => r.v)) || 1))}</span></div><div class="g"></div></div>`
+      + `<div class="m dos"><div class="eh"><span class="et">Visitas según de dónde llegan</span></div><div class="lg">${ORIGEN.map(([k, nombre, c]) => `<span><i style="background:${c}"></i>${nombre}</span>`).join('')}</div><div class="g"></div></div>`;
+    const gs = $$('#evo-graf .g');
+    defs.forEach(([t, vals, c, f], i) => lineas(gs[i], dias, [{ nombre: t, vals, color: c }], f));
+    lineas(gs[4], dias, [{ nombre: 'Conversión', vals: conv, color: '#9fe0bf' }], (v) => pct(v));
+    lineas(gs[5], dias, ORIGEN.map(([k, nombre, color]) => ({ nombre, color, vals: dias.map((d) => T.get(d)[k]) })), n, 150);
+
+    // ---- Análisis ----
+    const hoyD = hoy();
+    const cerr = F.filter((r) => r.dia < hoyD), B = cerr.length >= 3 ? cerr : F;
+    const tot = (arr, k) => sum(arr.map((r) => r[k]));
+    const V = tot(B, 'v'), C = tot(B, 'c'), P = tot(B, 'p'), K = tot(B, 'k');
+    const pasoCarrito = V ? C / V : 0, pasoPago = C ? P / C : 0, pasoCompra = P ? K / P : 0;
+    const mejorV = B.reduce((a, r) => r.v > a.v ? r : a, B[0]), mejorK = B.reduce((a, r) => r.k > a.k ? r : a, B[0]);
+    const sinK = B.filter((r) => !r.k).length;
+    let sem = null;
+    if (B.length >= 14) {
+      const u = B.slice(-7), p = B.slice(-14, -7);
+      const cam = (a, b) => b ? a / b - 1 : null;
+      sem = { v: cam(tot(u, 'v'), tot(p, 'v')), c: cam(tot(u, 'c'), tot(p, 'c')), k: cam(tot(u, 'k'), tot(p, 'k')), cu: tot(u, 'v') ? tot(u, 'k') / tot(u, 'v') : 0, cp: tot(p, 'v') ? tot(p, 'k') / tot(p, 'v') : 0, vu: tot(u, 'v'), vp: tot(p, 'v'), ku: tot(u, 'k'), kp: tot(p, 'k') };
+    }
+    const Bd = B.map((r) => r.dia), tb = (d, k) => T.get(d)[k];
+    const sh = (arr, k) => { const a = sum(arr.map((d) => tb(d, k))), t = sum(arr.map((d) => tb(d, 'social') + tb(d, 'direct') + tb(d, 'otros'))); return t ? a / t : 0; };
+    const dirU = Bd.length >= 14 ? sum(Bd.slice(-7).map((d) => tb(d, 'direct'))) : null, dirP = Bd.length >= 14 ? sum(Bd.slice(-14, -7).map((d) => tb(d, 'direct'))) : null;
+    const flecha = (x) => x == null ? '—' : (x >= 0 ? '▲ ' : '▼ ') + pct(Math.abs(x));
+    const lead = [];
+    lead.push(`De cada 100 visitas, <b>${(pasoCarrito * 100).toFixed(1).replace('.', ',')}</b> agregan algo al carrito. De cada 100 que llegan al pago, <b>${Math.round(pasoCompra * 100)}</b> terminan comprando: la mayor pérdida está ahí, en el último paso.`);
+    lead.push(`El día con más tráfico fue el <b>${esc(fechaD(mejorV.dia))}</b> (${n(mejorV.v)} visitas, ${mejorV.k} ${mejorV.k === 1 ? 'compra' : 'compras'}) y el que más vendió fue el <b>${esc(fechaD(mejorK.dia))}</b> (${mejorK.k} ${mejorK.k === 1 ? 'compra' : 'compras'} con ${n(mejorK.v)} visitas). Más visitas no siempre significa más ventas: pesa más la calidad del tráfico que la cantidad.`);
+    if (sem) lead.push(`Frente a la semana anterior, las visitas ${sem.v >= 0 ? 'subieron' : 'bajaron'} ${esc(pct(Math.abs(sem.v)))} y las compras ${sem.k == null ? '' : sem.k >= 0 ? 'subieron ' + esc(pct(sem.k)) : 'bajaron ' + esc(pct(Math.abs(sem.k)))}; la conversión pasó de ${esc(pct(sem.cp))} a ${esc(pct(sem.cu))}.`);
+    if (dirU != null && dirP > 0) lead.push(`Las redes siguen siendo la puerta principal (${esc(pct(sh(Bd, 'social')))} de las visitas), pero el tráfico directo ${dirU >= dirP ? 'viene creciendo' : 'viene bajando'}: ${n(dirU)} visitas en los últimos 7 días contra ${n(dirP)} en los 7 anteriores. Suele ser gente que ya te conoce y vuelve.`);
+    const tile = (k, v, d) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
+    const tiles = [
+      tile('Visita → carrito', esc(pct(pasoCarrito)), `${n(C)} de ${n(V)} visitas`),
+      tile('Visita → pago', esc(pct(V ? P / V : 0)), `${n(P)} de ${n(V)} visitas llegaron al pago`),
+      tile('Pago → compra', esc(pct(pasoCompra)), `${n(K)} compraron de ${n(P)}; ${n(P - K)} abandonaron en el último paso`),
+      tile('Conversión total', esc(pct(V ? K / V : 0)), `${n(K)} compras en ${B.length} días completos`),
+      tile('Días sin compras', String(sinK), `de ${B.length} días completos`),
+    ];
+    if (sem) tiles.push(tile('Últimos 7 días', esc(flecha(sem.v)) + ' visitas', `${n(sem.vu)} vs. ${n(sem.vp)} · compras ${n(sem.ku)} vs. ${n(sem.kp)}`));
+    ana.innerHTML = `<h3>Lectura de la evolución</h3><p class="lead">${lead.join(' ')}</p><div class="tiles">${tiles.join('')}</div><div class="aviso">${cerr.length < F.length ? 'No cuenta hoy porque el día sigue en curso. ' : ''}Son pocas compras por día, así que la conversión diaria salta mucho de un día a otro: mirá la tendencia de varios días, no un día suelto.</div>`;
+  }
+
+  function drawEmbudo() {
+    const el = $('#embudo');
+    if (stateBox(el, S.funnel)) return;
+    const r = S.funnel.data[0] || {}; const tot = Number(r.sessions) || 1;
+    el.innerHTML = [['Visitas', 'sessions'], ['Agregaron al carrito', 'sessions_with_cart_additions'], ['Llegaron al pago', 'sessions_that_reached_checkout'], ['Compraron', 'sessions_that_completed_checkout']]
+      .map(([l, k], i) => { const v = Number(r[k]) || 0; return barRow(l, v, Math.max(0.5, v / tot * 100), n0.format(v) + (i ? ' · ' + pct(v / tot) : '')); }).join('');
+  }
+  function drawOrigen() {
+    const el = $('#origen');
+    if (stateBox(el, S.traffic)) return;
+    const nombre = { social: 'Redes sociales', direct: 'Directo', search: 'Buscadores', email: 'Email', unknown: 'Otro', '': 'Otro' };
+    const agg = new Map();
+    for (const r of S.traffic.data) { const k = nombre[r.referrer_source ?? ''] || r.referrer_source || 'Otro'; agg.set(k, (agg.get(k) || 0) + Number(r.sessions || 0)); }
+    const rows = [...agg].sort((a, b) => b[1] - a[1]); const tot = rows.reduce((s, r) => s + r[1], 0) || 1; const mx = rows.length ? rows[0][1] : 1;
+    el.innerHTML = rows.map(([k, v], i) => barRow(k, v, Math.max(0.5, v / mx * 100), n0.format(v) + ' · ' + pct(v / tot), i > 0)).join('');
+  }
+  // ---------- Meta Ads: filtros, tabla, evolución y análisis ----------
+  const addDias = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  const diasEntre = (a, b) => { const out = []; for (let d = a; d <= b; d = addDias(d, 1)) out.push(d); return out; };
+  const METS = [
+    { k: 'gasto', t: 'Gasto', money: true }, { k: 'compras', t: 'Compras' }, { k: 'cpa', t: 'Costo por compra', money: true },
+    { k: 'roas', t: 'ROAS', f: (v) => n2.format(v) + 'x' }, { k: 'valor', t: 'Ventas atribuidas', money: true }, { k: 'carritos', t: 'Carritos' },
+    { k: 'ctr', t: 'CTR saliente', f: (v) => pct(v) }, { k: 'cpm', t: 'CPM', money: true, dec: true }, { k: 'impresiones', t: 'Impresiones' },
+  ];
+  const metFmt = (m) => m.money ? (v) => (m.dec ? pesos2 : pesos)(v) : (m.f || ((v) => n0.format(v)));  // los valores en dinero ya vienen en pesos
+  const chipsMet = (sel, attr) => `<div class="mchips">${METS.map((m) => `<button type="button" ${attr}="${m.k}" class="${m.k === sel ? 'on' : ''}">${m.t}</button>`).join('')}</div>`;
+
+  function metaRango() {
+    const f = S.mfil, hoyD = hoy(), ini = MV.META_INICIO;
+    let desde = ini, hasta = hoyD;
+    if (f.preset === '7') desde = addDias(hoyD, -6);
+    else if (f.preset === '14') desde = addDias(hoyD, -13);
+    else if (f.preset === 'mes') desde = hoyD.slice(0, 8) + '01';
+    else if (f.preset === 'custom') { desde = f.desde || ini; hasta = f.hasta || hoyD; }
+    if (desde < ini) desde = ini;
+    if (hasta > hoyD) hasta = hoyD;
+    if (desde > hasta) desde = hasta;
+    const conDatos = [...S.mday.map].filter(([, v]) => v.length).map(([d]) => d).sort();
+    const ultimo = conDatos.length ? conDatos[conDatos.length - 1] : hasta;
+    const hastaEf = hasta < ultimo ? hasta : ultimo;
+    const desdeEf = desde > hastaEf ? hastaEf : desde;
+    return { desde, hasta, desdeEf, hastaEf, dias: diasEntre(desdeEf, hastaEf), primero: conDatos[0] || desdeEf, ultimo };
+  }
+
+  function drawMeta() {
+    const D = S.mday, R = S.R, tc = S.config.tipo_cambio;
+    const kp = $('#m-kpis'), cu = $('#m-cuenta'), tb = $('#m-tabla'), an = $('#m-ana'), nota = $('#m-nota');
+    const base = 'Gasto, alcance, ventas y rentabilidad de cada campaña. Los montos de Meta vienen en dólares y se muestran en pesos al tipo de cambio configurado en compras.json.';
+    const limpiar = () => { cu.style.display = 'none'; tb.innerHTML = ''; an.innerHTML = ''; };
+    if (D.approval) { nota.textContent = base; kp.innerHTML = '<div class="err" style="grid-column:1/-1">Adspirer Social Ads necesita tu permiso para este panel. <button class="btn peach" data-allow="metaDia">Permitir</button></div>'; limpiar(); return; }
+    if (!D.map.size) {
+      nota.textContent = base;
+      if (D.fallos.size && !D.cargando) kp.innerHTML = `<div class="err" style="grid-column:1/-1">${esc([...D.fallos.values()][0])} <button class="btn peach" data-allow="metaDia">Reintentar</button></div>`;
+      else kp.innerHTML = '<div class="skel" style="height:90px;grid-column:1/-1"></div>';
+      limpiar(); return;
+    }
+    cu.style.display = '';
+    const rg = metaRango();
+    // sincronizar controles
+    $$('#m-presets button').forEach((b) => b.classList.toggle('on', b.dataset.p === S.mfil.preset));
+    if (document.activeElement !== $('#m-desde')) $('#m-desde').value = rg.desde;
+    if (document.activeElement !== $('#m-hasta')) $('#m-hasta').value = rg.hasta;
+    $('#m-desde').min = $('#m-hasta').min = MV.META_INICIO; $('#m-desde').max = $('#m-hasta').max = hoy();
+    $('#m-estado').value = S.mfil.estado;
+    nota.innerHTML = esc(base) + ` Datos del ${esc(fecha(rg.primero))} al ${esc(fecha(rg.ultimo))}; Meta actualiza una vez por noche.`
+      + (D.cargando ? ` <b>Cargando días: ${D.map.size} de ${D.total}…</b>` : '')
+      + (D.fallos.size && !D.cargando ? ` <span class="neg">No se pudieron traer ${D.fallos.size} ${D.fallos.size === 1 ? 'día' : 'días'}.</span> <span class="sub">${esc([...D.fallos.values()][0])}</span> <button class="btn" data-allow="metaDia">Reintentar</button>` : '');
+
+    // margen y equilibrio
+    const cOk = S.compras.st === 'ok' && S.orders.st === 'ok';
+    const mp = R ? R.tot.margen_pct : 0;
+    const margen = cOk && mp > 0.05 && mp < 1 ? mp : null;
+    const E = margen ? 1 / margen : 1;
+    const ticket = S.orders.st === 'ok' && R ? R.tot.ticket : null;
+
+    const agg = MV.metaAgg(S.mday.map, rg.dias, S.mfil.estado), T = agg.tot;
+    const G = T.gasto * tc, V = T.valor * tc, res = margen != null ? V * margen - G : null;
+    const shop = R ? R.ventasDia.filter((r) => r.dia >= rg.desdeEf && r.dia <= rg.hastaEf) : [];
+    const shopCob = shop.reduce((s, r) => s + r.cobrado, 0), shopPed = shop.reduce((s, r) => s + r.pedidos, 0);
+    const mer = S.mfil.estado === 'todas' && G > 0 && S.orders.st === 'ok' ? shopCob / G : null;
+    const tile = (k, v, d, cls) => `<div class="tile"><div class="k">${k}</div><div class="v ${cls || ''}">${v}</div><div class="d">${d}</div></div>`;
+    kp.innerHTML = [
+      tile('Gasto en el período', esc(pesos(G)), `U$S ${esc(n2.format(T.gasto))} · ${T.dias} ${T.dias === 1 ? 'día' : 'días'} con gasto`),
+      tile('Compras que atribuye Meta', n0.format(T.compras), T.cpa != null ? `Cada compra costó ${esc(pesos(T.cpa * tc))} de publicidad` : 'Todavía sin compras'),
+      tile('Ventas atribuidas', esc(pesos(V)), `ROAS ${T.roas != null ? esc(n2.format(T.roas)) + 'x' : '—'}${margen ? ` · equilibrio ≈ ${esc(n2.format(E))}x` : ''}`),
+      tile('Resultado estimado', res == null ? '—' : esc(pesos(res)), 'Ventas atribuidas × margen bruto − gasto', res == null ? '' : res < 0 ? 'neg' : 'pos'),
+      tile('Cobrado en Shopify por cada $1 de Meta', mer == null ? '—' : esc(pesos2(mer)), mer == null ? 'Se calcula con todas las campañas' : `${esc(pesos(shopCob))} cobrados en las mismas fechas`),
+      tile('Impresiones', n0.format(T.impresiones), `CPM ${T.cpm != null ? esc(pesos2(T.cpm * tc)) : '—'} · CTR saliente ${T.ctr != null ? esc(pct(T.ctr)) : '—'}`),
+    ].join('');
+
+    // evolución de la cuenta
+    const mC = METS.find((m) => m.k === S.mmet) || METS[0];
+    const estTxt = S.mfil.estado === 'ACTIVE' ? 'las campañas activas' : S.mfil.estado === 'PAUSED' ? 'las campañas pausadas' : 'todas las campañas';
+    cu.innerHTML = `<div class="eh"><span class="et">Evolución día por día de ${estTxt} · ${esc(fecha(rg.desdeEf))} al ${esc(fecha(rg.hastaEf))}</span></div>${chipsMet(mC.k, 'data-m')}<div class="g"></div>`;
+    const valsC = MV.metaSerie(S.mday.map, rg.dias, null, mC.k, S.mfil.estado).map((v) => v == null ? null : mC.money ? v * tc : v);
+    lineas(cu.querySelector('.g'), rg.dias, [{ nombre: mC.t, vals: valsC, color: '#3fa37c' }], metFmt(mC, tc), 190, { dots: true, ylab: true, ref: mC.k === 'roas' && margen ? { v: E, label: `equilibrio ${n2.format(E)}x` } : null });
+
+    // tabla
+    const veredicto = (r) => r.gasto < 15 ? ['Pocos datos', 'off'] : !r.compras ? ['Sin compras', 'warn'] : r.roas >= E * 1.15 ? ['Rentable', ''] : r.roas >= E * 0.85 ? ['Cerca del equilibrio', 'off'] : ['Pierde plata', 'warn'];
+    const rows = agg.rows.map((r) => ({ ...r, res: margen != null ? r.valor * tc * margen - r.gasto * tc : null, ver: veredicto(r) }));
+    const sk = S.msort.k, sd = S.msort.dir;
+    const val = (r) => sk === 'campana' || sk === 'estado' ? String(r[sk]) : sk === 'ver' ? (r.roas ?? -1) : (r[sk] == null ? -Infinity : r[sk]);
+    rows.sort((a, b) => { const x = val(a), y = val(b); return (typeof x === 'string' ? x.localeCompare(y) : x - y) * sd; });
+    const COLS = [
+      ['campana', 'Campaña', ''], ['estado', 'Estado', ''], ['ver', 'Veredicto', ''], ['gasto', 'Gasto', 'n'], ['impresiones', 'Impresiones', 'n'], ['salientes', 'Clics salientes', 'n'],
+      ['ctr', 'CTR saliente', 'n'], ['cpm', 'CPM', 'n'], ['cpc', 'Costo por clic', 'n'], ['carritos', 'Carritos', 'n'], ['compras', 'Compras', 'n'], ['cpa', 'Costo por compra', 'n'],
+      ['valor', 'Ventas atribuidas', 'n'], ['roas', 'ROAS', 'n'], ['res', 'Resultado est.', 'n'], ['dias', 'Días con gasto', 'n'],
+    ];
+    const head = COLS.map(([k, t, c]) => `<th class="${c}" data-s="${k}">${t}${k === sk ? (sd < 0 ? ' ▼' : ' ▲') : ''}</th>`).join('');
+    const rr = (r) => [
+      `<td><span class="chev">▸</span>${esc(r.campana)}</td>`,
+      `<td>${r.estado === 'ACTIVE' ? '<span class="pill">Activa</span>' : `<span class="pill off">${r.estado === 'PAUSED' ? 'Pausada' : esc(r.estado)}</span>`}</td>`,
+      `<td><span class="pill ${r.ver[1]}">${r.ver[0]}</span></td>`,
+      `<td class="n">${esc(pesos(r.gasto * tc))}</td>`, `<td class="n">${n0.format(r.impresiones)}</td>`, `<td class="n">${n0.format(r.salientes)}</td>`,
+      `<td class="n">${r.ctr != null ? esc(pct(r.ctr)) : '—'}</td>`, `<td class="n">${r.cpm != null ? esc(pesos2(r.cpm * tc)) : '—'}</td>`, `<td class="n">${r.cpc != null ? esc(pesos2(r.cpc * tc)) : '—'}</td>`,
+      `<td class="n">${n0.format(r.carritos)}</td>`, `<td class="n">${n0.format(r.compras)}</td>`, `<td class="n">${r.cpa != null ? esc(pesos(r.cpa * tc)) : '—'}</td>`,
+      `<td class="n">${esc(pesos(r.valor * tc))}</td>`, `<td class="n ${r.roas == null ? '' : r.roas >= E ? 'pos' : r.roas < E * 0.85 ? 'neg' : ''}">${r.roas != null ? esc(n2.format(r.roas)) + 'x' : '—'}</td>`,
+      `<td class="n ${r.res == null ? '' : r.res < 0 ? 'neg' : 'pos'}">${r.res == null ? '—' : esc(pesos(r.res))}</td>`, `<td class="n">${r.dias}</td>`,
+    ].join('');
+    const selId = rows.some((r) => r.id === S.msel) ? S.msel : null;
+    const detW = Math.max(300, tb.clientWidth - 30);
+    let body = '';
+    for (const r of rows) {
+      body += `<tr class="fila ${r.id === selId ? 'sel' : ''}" data-id="${esc(r.id)}">${rr(r)}</tr>`;
+      if (r.id === selId) body += `<tr class="det"><td colspan="${COLS.length}"><div class="det" style="position:sticky;left:14px;width:${detW}px"></div></td></tr>`;
+    }
+    const tot = `<tr><td>Total (${rows.length} ${rows.length === 1 ? 'campaña' : 'campañas'})</td><td></td><td></td><td class="n">${esc(pesos(G))}</td><td class="n">${n0.format(T.impresiones)}</td><td class="n">${n0.format(T.salientes)}</td>
+      <td class="n">${T.ctr != null ? esc(pct(T.ctr)) : '—'}</td><td class="n">${T.cpm != null ? esc(pesos2(T.cpm * tc)) : '—'}</td><td class="n">${T.cpc != null ? esc(pesos2(T.cpc * tc)) : '—'}</td><td class="n">${n0.format(T.carritos)}</td>
+      <td class="n">${n0.format(T.compras)}</td><td class="n">${T.cpa != null ? esc(pesos(T.cpa * tc)) : '—'}</td><td class="n">${esc(pesos(V))}</td><td class="n">${T.roas != null ? esc(n2.format(T.roas)) + 'x' : '—'}</td>
+      <td class="n ${res == null ? '' : res < 0 ? 'neg' : 'pos'}">${res == null ? '—' : esc(pesos(res))}</td><td class="n">${T.dias}</td></tr>`;
+    tb.innerHTML = rows.length ? `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody><tfoot>${tot}</tfoot></table>` : '<div class="err">No hay campañas con datos para este período y estado.</div>';
+
+    // detalle de la campaña elegida
+    if (selId) {
+      const r = rows.find((x) => x.id === selId), mD = METS.find((m) => m.k === S.mmetC) || METS[0], det = tb.querySelector('div.det');
+      const ser = (k) => MV.metaSerie(S.mday.map, rg.dias, selId, k);
+      const gs = ser('gasto'), cs = ser('compras');
+      const idx = (a, f) => a.reduce((b, v, i) => v != null && f(v, a[b]) ? i : b, 0);
+      const conGasto = rg.dias.filter((d, i) => gs[i] > 0), mejorI = cs.some((v) => v > 0) ? idx(cs, (v, o) => v > o) : -1;
+      const frase = r.ver[0] === 'Rentable' ? `ROAS ${n2.format(r.roas)}x, por encima del equilibrio de ${n2.format(E)}x: se paga.` : r.ver[0] === 'Pierde plata' ? `ROAS ${n2.format(r.roas)}x, por debajo del equilibrio de ${n2.format(E)}x: con tu margen, esta campaña pierde plata.` : r.ver[0] === 'Sin compras' ? `Gastó ${pesos(r.gasto * tc)} sin registrar compras.` : r.ver[0] === 'Cerca del equilibrio' ? `ROAS ${n2.format(r.roas)}x, cerca del equilibrio de ${n2.format(E)}x.` : 'Todavía gastó poco como para sacar conclusiones.';
+      det.innerHTML = `<div class="eh"><span class="et">Evolución de «${esc(r.campana)}» · ${esc(fecha(rg.desdeEf))} al ${esc(fecha(rg.hastaEf))}</span></div>${chipsMet(mD.k, 'data-mc')}<div class="g"></div>
+        <div class="dsub">${conGasto.length ? `Primer día con gasto: ${esc(fechaC(conGasto[0]))} · último: ${esc(fechaC(conGasto[conGasto.length - 1]))} · ${r.dias} ${r.dias === 1 ? 'día' : 'días'} con gasto` : 'Sin gasto en este período'}${mejorI >= 0 ? ` · día con más compras: ${esc(fechaC(rg.dias[mejorI]))} (${cs[mejorI]})` : ''}. ${esc(frase)}</div>`;
+      const valsD = ser(mD.k).map((v) => v == null ? null : mD.money ? v * tc : v);
+      lineas(det.querySelector('.g'), rg.dias, [{ nombre: mD.t, vals: valsD, color: '#ef8a5f' }], metFmt(mD, tc), 190, { dots: true, ylab: true, ref: mD.k === 'roas' && margen ? { v: E, label: `equilibrio ${n2.format(E)}x` } : null });
+    }
+
+    // análisis
+    if (!rows.length || !G) { an.innerHTML = ''; return; }
+    const cand = rows.filter((r) => r.gasto >= 15), pe = (r) => r.gasto * tc - r.valor * tc * (margen != null ? margen : 1);
+    const mejor = cand.filter((r) => r.compras > 0).sort((a, b) => b.roas - a.roas)[0];
+    const peor = [...cand].sort((a, b) => pe(b) - pe(a))[0];
+    const sinC = cand.filter((r) => !r.compras), bajo = cand.filter((r) => r.compras > 0 && r.roas < E * 0.85).sort((a, b) => b.gasto - a.gasto).slice(0, 3);
+    const activas = rows.filter((r) => r.estado === 'ACTIVE');
+    const lead = [];
+    lead.push(`En ${rg.dias.length} ${rg.dias.length === 1 ? 'día' : 'días'} Meta gastó <b>${esc(pesos(G))}</b> (U$S ${esc(n2.format(T.gasto))}) y atribuyó <b>${T.compras} ${T.compras === 1 ? 'compra' : 'compras'}</b> por <b>${esc(pesos(V))}</b>: ROAS <b>${T.roas != null ? esc(n2.format(T.roas)) + 'x' : '—'}</b>.`
+      + (margen ? ` Con tu margen bruto actual (${esc(pct(margen))}) hace falta un ROAS de ${esc(n2.format(E))}x para no perder plata, así que en conjunto la publicidad ${T.roas >= E ? 'se paga' : 'todavía no alcanza a pagarse'}.` : ' Todavía no hay costos suficientes para calcular el ROAS de equilibrio, así que se usa 1x.'));
+    if (T.cpa != null && ticket && margen) { const gan = ticket * margen; lead.push(`Cada compra te costó ${esc(pesos(T.cpa * tc))} de publicidad y un pedido te deja en promedio ${esc(pesos(gan))} de ganancia bruta (ticket de ${esc(pesos(ticket))}): ${T.cpa * tc <= gan ? 'la ganancia de cada venta cubre lo que costó conseguirla.' : 'la publicidad cuesta más de lo que deja cada venta.'}`); }
+    if (mejor) lead.push(`La que mejor rinde es <b>${esc(mejor.campana)}</b>, con ROAS ${esc(n2.format(mejor.roas))}x y ${esc(pesos(mejor.cpa * tc))} por compra.`);
+    if (sinC.length) lead.push(`${sinC.length === 1 ? 'Una campaña gastó' : sinC.length + ' campañas gastaron'} ${esc(pesos(sinC.reduce((s, r) => s + r.gasto * tc, 0)))} sin ninguna compra: ${esc(sinC.map((r) => r.campana).join(', '))}.`);
+    if (bajo.length) lead.push(`Por debajo del equilibrio y con gasto importante: ${bajo.map((r) => `${esc(r.campana)} (${esc(n2.format(r.roas))}x)`).join(', ')}.`);
+    lead.push(activas.length ? `Hoy hay ${activas.length} ${activas.length === 1 ? 'campaña activa' : 'campañas activas'}: ${activas.map((r) => `${esc(r.campana)} (${r.roas != null ? esc(n2.format(r.roas)) + 'x' : 'sin datos'})`).join(', ')}.` : 'No hay campañas activas en este período.');
+    let tend = null;
+    if (rg.dias.length >= 14) {
+      const u = rg.dias.slice(-7), p = rg.dias.slice(-14, -7), au = MV.metaAgg(S.mday.map, u, S.mfil.estado).tot, ap = MV.metaAgg(S.mday.map, p, S.mfil.estado).tot;
+      tend = { au, ap };
+      lead.push(`Últimos 7 días: gasto de ${esc(pesos(au.gasto * tc))} (antes ${esc(pesos(ap.gasto * tc))}), ${au.compras} compras (antes ${ap.compras}) y ROAS ${au.roas != null ? esc(n2.format(au.roas)) + 'x' : '—'} (antes ${ap.roas != null ? esc(n2.format(ap.roas)) + 'x' : '—'}).`);
+    }
+    const tl = [];
+    tl.push(tile('ROAS de equilibrio', esc(n2.format(E)) + 'x', margen ? `Es 1 ÷ tu margen bruto (${esc(pct(margen))}). Por debajo se pierde plata.` : 'Sin costos suficientes: se usa 1x'));
+    if (mejor) tl.push(tile('Mejor campaña', esc(mejor.campana), `ROAS ${esc(n2.format(mejor.roas))}x · ${esc(pesos(mejor.cpa * tc))} por compra`));
+    if (peor && pe(peor) > 0) tl.push(tile('La que más plata pierde', esc(peor.campana), `Perdió ~${esc(pesos(pe(peor)))} (ROAS ${peor.roas != null ? esc(n2.format(peor.roas)) + 'x' : '—'})`));
+    if (T.cpa != null && ticket && margen) tl.push(tile('Costo por compra vs. ganancia por pedido', `${esc(pesos(T.cpa * tc))} vs. ${esc(pesos(ticket * margen))}`, T.cpa * tc <= ticket * margen ? 'La venta cubre su publicidad' : 'La publicidad cuesta más que la ganancia', T.cpa * tc <= ticket * margen ? 'pos' : 'neg'));
+    if (tend) tl.push(tile('Últimos 7 días vs. 7 anteriores', `${tend.au.gasto >= tend.ap.gasto ? '▲' : '▼'} gasto ${tend.ap.gasto ? esc(pct(Math.abs(tend.au.gasto / tend.ap.gasto - 1))) : '—'}`, `ROAS ${tend.au.roas != null ? esc(n2.format(tend.au.roas)) + 'x' : '—'} vs. ${tend.ap.roas != null ? esc(n2.format(tend.ap.roas)) + 'x' : '—'}`));
+    an.innerHTML = `<h3>Lectura de las campañas</h3><p class="lead">${lead.join(' ')}</p><div class="mkp">${tl.join('')}</div><div class="aviso">Meta atribuye las compras con su propia ventana de atribución: en estas fechas registró ${T.compras} ${T.compras === 1 ? 'compra' : 'compras'} y Shopify ${shopPed} ${shopPed === 1 ? 'pedido pago' : 'pedidos pagos'} (en todo el comercio, no solo de publicidad). El resultado estimado usa tu margen bruto actual; si faltan costos por cargar, es más optimista que el real.</div>`;
+  }
+
+  (function initMeta() {
+    const redraw = () => { try { drawMeta(); } catch (e) { console.error(e); } };
+    $('#m-presets').addEventListener('click', (ev) => { const b = ev.target.closest('button[data-p]'); if (!b) return; S.mfil.preset = b.dataset.p; redraw(); });
+    const fechas = () => { S.mfil.preset = 'custom'; S.mfil.desde = $('#m-desde').value || null; S.mfil.hasta = $('#m-hasta').value || null; redraw(); };
+    $('#m-desde').addEventListener('change', fechas); $('#m-hasta').addEventListener('change', fechas);
+    $('#m-estado').addEventListener('change', () => { S.mfil.estado = $('#m-estado').value; S.msel = null; redraw(); });
+    $('#m-cuenta').addEventListener('click', (ev) => { const b = ev.target.closest('button[data-m]'); if (!b) return; S.mmet = b.dataset.m; redraw(); });
+    $('#m-tabla').addEventListener('click', (ev) => {
+      const c = ev.target.closest('button[data-mc]'); if (c) { S.mmetC = c.dataset.mc; redraw(); return; }
+      const th = ev.target.closest('th[data-s]'); if (th) { const k = th.dataset.s; S.msort = S.msort.k === k ? { k, dir: -S.msort.dir } : { k, dir: k === 'campana' || k === 'estado' ? 1 : -1 }; redraw(); return; }
+      if (ev.target.closest('tr.det')) return;
+      const tr = ev.target.closest('tr.fila'); if (tr) { S.msel = S.msel === tr.dataset.id ? null : tr.dataset.id; redraw(); }
+    });
+  })();
+
+  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(render, 150); });
+  render();
+})();
+</script>
+</body>
+</html>

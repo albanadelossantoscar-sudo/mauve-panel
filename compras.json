@@ -1,0 +1,26 @@
+{
+  "_ayuda": "Archivo para cargar compras y costos a mano. Cada compra va en la lista 'compras'. 'modo': 'desde' = el costo rige desde esa fecha en adelante (las ventas anteriores mantienen su costo); 'historico' = reemplaza el costo de TODAS las ventas del producto, también las pasadas. Si solo cambió el precio, 'unidades': 0. 'creado' es la fecha y hora de carga (ordena los cambios de costo); si lo omitís se usa la fecha. El tipo de cambio es para convertir el gasto de Meta (dólares) a pesos.",
+  "tipo_cambio": 40.2,
+  "tienda_esperada": "Mauve",
+  "meta_inicio": "2026-10-22",
+  "shopify_desde": "2026-10-21",
+  "cuenta_meta": "act_4633774256878804",
+  "productos": [
+    { "nombre": "Corpiños Seamless", "palabras_clave": "CORPI",     "prendas_por_pack": 3, "prioridad": 1 },
+    { "nombre": "Bodys Premium",     "palabras_clave": "BODY",      "prendas_por_pack": 2, "prioridad": 4 },
+    { "nombre": "Remeras Siena",     "palabras_clave": "REME",      "prendas_por_pack": 2, "prioridad": 5 },
+    { "nombre": "Body reductor",     "palabras_clave": "REDUCTOR",  "prendas_por_pack": 3, "prioridad": 2 },
+    { "nombre": "Body modelador",    "palabras_clave": "MODELADOR", "prendas_por_pack": 2, "prioridad": 3 }
+  ],
+  "pendientes": [
+    { "producto": "Body modelador", "nota": "PENDIENTE: todavía no tiene costo cargado. Agregá una compra con su costo por prenda cuando lo tengas." }
+  ],
+  "compras": [
+    { "id": "inicial-corpinos",     "fecha": "2026-10-21", "producto": "Corpiños Seamless", "unidades": 126, "costo_unitario": 63.8381, "modo": "historico", "nota": "2 compras · total $8.043,60 (informe 06/11)", "creado": "2026-11-08T17:00:00.000Z" },
+    { "id": "inicial-bodys",        "fecha": "2026-10-21", "producto": "Bodys Premium",     "unidades": 16,  "costo_unitario": 400,     "modo": "historico", "nota": "4 compras · total $6.400 (informe 06/11)",   "creado": "2026-11-08T17:00:01.000Z" },
+    { "id": "inicial-remeras",      "fecha": "2026-10-21", "producto": "Remeras Siena",     "unidades": 12,  "costo_unitario": 250,     "modo": "historico", "nota": "Total $3.000 (informe 06/11)",               "creado": "2026-11-08T17:00:02.000Z" },
+    { "id": "costo-body-reductor",  "fecha": "2026-10-21", "producto": "Body reductor",     "unidades": 0,   "costo_unitario": 256,     "modo": "historico", "nota": "Costo informado el 08/11, sin unidades cargadas", "creado": "2026-11-08T17:00:03.000Z" },
+    { "id": "v8pwne3iemklp6vubn71", "fecha": "2026-11-09", "producto": "Body reductor",     "unidades": 12,  "costo_unitario": 167,     "modo": "desde",     "nota": "", "creado": "2026-11-09T20:22:23.064Z" },
+    { "id": "0ksjsl1a0ux6a353lpfj", "fecha": "2026-11-09", "producto": "Corpiños Seamless", "unidades": 50,  "costo_unitario": 76,      "modo": "desde",     "nota": "", "creado": "2026-11-09T20:23:33.861Z" }
+  ]
+}
