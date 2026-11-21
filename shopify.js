@@ -4,15 +4,21 @@ const { pedir } = require('./http');
 const base = (shop) => process.env.SHOPIFY_BASE_URL || `https://${String(shop).trim().replace(/\.myshopify\.com$/, '')}.myshopify.com`;
 
 async function token(shop, id, secret) {
-  const r = await pedir(`${base(shop)}/admin/oauth/access_token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: String(id).trim(), client_secret: String(secret).trim() }).toString(),
-  });
+  const body = new URLSearchParams({ grant_type: 'client_credentials', client_id: String(id).trim(), client_secret: String(secret).trim() }).toString();
+  let url = `${base(shop)}/admin/oauth/access_token`;
+  const pasos = [];
+  let r;
+  for (let i = 0; i < 4; i++) {
+    r = await pedir(url, { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body });
+    pasos.push(`${r.status} ${new URL(url).host}`);
+    const loc = r.headers.get('location');
+    if (r.status >= 300 && r.status < 400 && loc) { url = new URL(loc, url).toString(); continue; }
+    break;
+  }
   if (!r.ok) {
     let detalle = '';
-    try { detalle = (await r.text()).replace(/\s+/g, ' ').slice(0, 300); } catch (e) { /* sin detalle */ }
-    throw new Error(`Shopify no entregó el token (HTTP ${r.status}): ${detalle}. Revisá SHOPIFY_SHOP, SHOPIFY_CLIENT_ID y SHOPIFY_CLIENT_SECRET, y que la app esté instalada en la tienda.`);
+    try { const t = (await r.text()).replace(/\s+/g, ' '); const m = t.match(/<title>([^<]*)/); const p = t.match(/Oauth error[^<]*/); detalle = (p ? p[0] : (m ? m[1] : t)).slice(0, 300); } catch (e) { /* sin detalle */ }
+    throw new Error(`Shopify no entregó el token (${pasos.join(' -> ')}): ${detalle}. Revisá SHOPIFY_SHOP, SHOPIFY_CLIENT_ID y SHOPIFY_CLIENT_SECRET, y que la app esté instalada en la tienda.`);
   }
   const j = await r.json();
   if (!j.access_token) throw new Error('Shopify respondió sin access_token.');
